@@ -15,46 +15,32 @@
   </properties>
 
   <dependencies>
-    <!-- SparkJava -->
+    <!-- SparkJava core (includes Jetty and servlet API transitively) -->
     <dependency>
       <groupId>com.sparkjava</groupId>
       <artifactId>spark-core</artifactId>
       <version>2.9.4</version>
     </dependency>
 
-    <!-- Jetty (for multipart support) -->
-    <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-servlet</artifactId>
-      <version>9.4.43.v20210629</version>
-    </dependency>
-
-    <!-- Servlet API (no provided scope so it's in the shaded JAR) -->
-    <dependency>
-      <groupId>javax.servlet</groupId>
-      <artifactId>javax.servlet-api</artifactId>
-      <version>4.0.1</version>
-    </dependency>
-
-    <!-- PDFBox for resume parsing -->
+    <!-- PDF parsing -->
     <dependency>
       <groupId>org.apache.pdfbox</groupId>
       <artifactId>pdfbox</artifactId>
       <version>2.0.27</version>
     </dependency>
 
-    <!-- Gson for JSON serialization -->
+    <!-- JSON serialization -->
     <dependency>
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
       <version>2.10.1</version>
     </dependency>
 
-    <!-- SLF4J Simple for logging -->
+    <!-- Simple SLF4J backend for logging -->
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-simple</artifactId>
-      <version>1.7.32</version>
+      <version>1.7.36</version>
     </dependency>
 
     <!-- JUnit 5 for tests -->
@@ -68,7 +54,7 @@
 
   <build>
     <plugins>
-      <!-- Ensure Java 11 compilation -->
+      <!-- 1) Compile for Java 11 -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -79,7 +65,7 @@
         </configuration>
       </plugin>
 
-      <!-- Shade everything into a fat-jar -->
+      <!-- 2) Shade into a single fat‐jar -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
@@ -91,13 +77,22 @@
             <configuration>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <!-- Update to your main class -->
                   <mainClass>com.aarav.sparkapp.App</mainClass>
                 </transformer>
               </transformers>
             </configuration>
           </execution>
         </executions>
+      </plugin>
+
+      <!-- 3) (Optional) Exec plugin so you can run straight from Maven -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.0.0</version>
+        <configuration>
+          <mainClass>com.aarav.sparkapp.App</mainClass>
+        </configuration>
       </plugin>
     </plugins>
   </build>
