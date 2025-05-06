@@ -1,0 +1,6 @@
+cat > .gitignore <<EOF
+target/
+*.jar
+EOF
+git add .gitignore
+git commit -m "Add .gitignore" 

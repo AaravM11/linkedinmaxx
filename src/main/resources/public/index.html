@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Profile Manager</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Profile Manager</h1>
+
+  <label>
+    Username:
+    <input type="text" id="username" placeholder="alice">
+  </label>
+
+  <form id="uploadForm" enctype="multipart/form-data">
+    <label>
+      Friends (comma-separated):
+      <input type="text" id="friendsList" name="friendsList"
+             placeholder="bob,charlie,dan">
+    </label>
+    <label>
+      Resume PDF:
+      <input type="file" id="resumeFile" name="resumeFile" accept=".pdf">
+    </label>
+    <button type="button" id="updateProfile">Update Profile</button>
+  </form>
+
+  <button id="getProfile">Get Profile</button>
+  <pre id="profileOutput"></pre>
+
+  <h2>Compute Friendship Distance</h2>
+  <form class="distance-form">
+    <label>
+      From:
+      <input type="text" id="distUser1" placeholder="alice">
+    </label>
+    <label>
+      To:
+      <input type="text" id="distUser2" placeholder="bob">
+    </label>
+    <button type="button" id="getDistance">Get Distance</button>
+  </form>
+  <pre id="distanceOutput"></pre>
+
+  <button id="getGraph">Get Graph</button>
+  <pre id="graphOutput"></pre>
+
+  <script>
+    const baseUrl = window.location.origin;
+
+    document.getElementById('updateProfile')
+      .addEventListener('click', async () => {
+        const user = document.getElementById('username').value.trim();
+        if (!user) return alert('Enter a username');
+        const data = new FormData(document.getElementById('uploadForm'));
+        const res = await fetch(
+          `${baseUrl}/api/profile?user=${encodeURIComponent(user)}`,
+          { method: 'POST', body: data }
+        );
+        const json = await res.json();
+        document.getElementById('profileOutput').textContent =
+          `Update response: ${JSON.stringify(json, null, 2)}`;
+      });
+
+    document.getElementById('getProfile')
+      .addEventListener('click', async () => {
+        const user = document.getElementById('username').value.trim();
+        if (!user) return alert('Enter a username');
+        const res = await fetch(
+          `${baseUrl}/api/profile?user=${encodeURIComponent(user)}`
+        );
+        const json = await res.json();
+        document.getElementById('profileOutput').textContent =
+          `Profile: ${JSON.stringify(json, null, 2)}`;
+      });
+
+    document.getElementById('getDistance')
+      .addEventListener('click', async () => {
+        const u1 = document.getElementById('distUser1').value.trim();
+        const u2 = document.getElementById('distUser2').value.trim();
+        if (!u1 || !u2) return alert('Enter both usernames');
+        const res = await fetch(
+          `${baseUrl}/api/distance?user1=${encodeURIComponent(u1)}&user2=${encodeURIComponent(u2)}`
+        );
+        const json = await res.json();
+        if (res.ok) {
+          document.getElementById('distanceOutput').textContent =
+            `Path (${json.distance} hops): ${json.path.join(' → ')}`;
+        } else {
+          document.getElementById('distanceOutput').textContent =
+            `Error: ${json.error}`;
+        }
+      });
+
+    document.getElementById('getGraph')
+      .addEventListener('click', async () => {
+        const res = await fetch(`${baseUrl}/api/graph`);
+        const json = await res.json();
+        document.getElementById('graphOutput').textContent =
+          `Graph: ${JSON.stringify(json, null, 2)}`;
+      });
+  </script>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    const width = 800, height = 600;
+    const svg = d3.select('body')
+      .append('svg')
+        .attr('id', 'graphSvg')
+        .attr('width', width)
+        .attr('height', height);
+
+    function renderGraph(graph) {
+      svg.selectAll('*').remove();
+      const nodes = graph.nodes.map(d => ({ id: d.id }));
+      const links = graph.edges.map(d => ({ source: d.source, target: d.target }));
+
+      const simulation = d3.forceSimulation(nodes)
+        .force('link', d3.forceLink(links).id(d => d.id).distance(80))
+        .force('charge', d3.forceManyBody().strength(-200))
+        .force('center', d3.forceCenter(width/2, height/2));
+
+      svg.append('g')
+        .selectAll('line')
+        .data(links)
+        .enter().append('line')
+          .attr('stroke', '#999')
+          .attr('stroke-opacity', 0.6)
+          .attr('stroke-width', 1.5);
+
+      svg.append('g')
+        .selectAll('circle')
+        .data(nodes)
+        .enter().append('circle')
+          .attr('r', 8)
+          .attr('fill', '#69b3a2')
+          .call(d3.drag()
+            .on('start', (event, d) => {
+              if (!event.active) simulation.alphaTarget(0.3).restart();
+              d.fx = d.x; d.fy = d.y;
+            })
+            .on('drag', (event, d) => { d.fx = event.x; d.fy = event.y; })
+            .on('end', (event, d) => {
+              if (!event.active) simulation.alphaTarget(0);
+              d.fx = null; d.fy = null;
+            })
+          );
+
+      svg.append('g')
+        .selectAll('text')
+        .data(nodes)
+        .enter().append('text')
+          .text(d => d.id)
+          .attr('x', 12).attr('y', 4).style('font','10px sans-serif');
+
+      simulation.on('tick', () => {
+        svg.selectAll('line')
+          .attr('x1', d => d.source.x)
+          .attr('y1', d => d.source.y)
+          .attr('x2', d => d.target.x)
+          .attr('y2', d => d.target.y);
+        svg.selectAll('circle')
+          .attr('cx', d => d.x)
+          .attr('cy', d => d.y);
+        svg.selectAll('text')
+          .attr('x', d => d.x + 12)
+          .attr('y', d => d.y + 4);
+      });
+    }
+
+    document.getElementById('getGraph').addEventListener('click', async () => {
+      const res = await fetch(`${baseUrl}/api/graph`);
+      const graph = await res.json();
+      renderGraph(graph);
+    });
+  </script>
+</body>
+</html>
